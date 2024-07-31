@@ -39,51 +39,53 @@ int main(int argc, char *argv[]) {
     if (instruction[0] >> 2 == 0b100010) { // register/memory to/from register
       fread(&instruction[1], 1, 1, program);
       int mod = instruction[1] >> 6;
-      char *reg = w[instruction[0] & 1][(instruction[1] & 0b00111111) >> 3];
-      char *rm = w[instruction[0] & 1][instruction[1] & 0b00000111];
-      printf("mod is %b\n", mod);
+      int reg = (instruction[1] & 0b00111111) >> 3;
+      int rm = instruction[1] & 0b00000111;
+      char *reg_name = w[instruction[0] & 1][reg];
+      char *rm_name = w[instruction[0] & 1][rm];
+      char effective_address[8];
+      strncpy(effective_address, mods[rm], 8);
       if (mod == 0b11) {
         if ((instruction[0] >> 1 & 1)) {
-          fprintf(disassemble, "mov %s, %s\n", reg, rm);
+          fprintf(disassemble, "mov %s, %s\n", reg_name, rm_name);
         } else {
-          fprintf(disassemble, "mov %s, %s\n", rm, reg);
+          fprintf(disassemble, "mov %s, %s\n", rm_name, reg_name);
         }
       } else if (mod == 0b00) {
+        if (rm == 0b110) {
+          fread(&instruction[2], 1, 2, program);
+          sprintf(effective_address, "%d",
+                  instruction[2] | instruction[3] << 8);
+        }
         if ((instruction[0] >> 1 & 1))
-          fprintf(disassemble, "mov %s, [%s]\n", reg,
-                  mods[instruction[1] & 0b00000111]);
+          fprintf(disassemble, "mov %s, [%s]\n", reg_name, effective_address);
         else
-          fprintf(disassemble, "mov [%s], %s\n",
-                  mods[instruction[1] & 0b00000111], reg);
+          fprintf(disassemble, "mov [%s], %s\n", effective_address, reg_name);
 
       } else if (mod == 0b01) {
         fread(&instruction[2], 1, 1, program);
         uint8_t displacement = instruction[2];
         if ((instruction[0] >> 1 & 1)) {
           if (displacement != 0)
-            fprintf(disassemble, "mov %s, [%s + %d]\n", reg,
-                    mods[instruction[1] & 0b00000111], instruction[2]);
+            fprintf(disassemble, "mov %s, [%s + %d]\n", reg_name,
+                    effective_address, instruction[2]);
           else
-            fprintf(disassemble, "mov %s, [%s]\n", reg,
-                    mods[instruction[1] & 0b00000111]);
+            fprintf(disassemble, "mov %s, [%s]\n", reg_name, effective_address);
         } else {
           if (displacement != 0)
-            fprintf(disassemble, "mov [%s + %d], %s\n",
-                    mods[instruction[1] & 0b00000111], instruction[2], reg);
+            fprintf(disassemble, "mov [%s + %d], %s\n", effective_address,
+                    instruction[2], reg_name);
           else
-            fprintf(disassemble, "mov [%s], %s\n",
-                    mods[instruction[1] & 0b00000111], reg);
+            fprintf(disassemble, "mov [%s], %s\n", effective_address, reg_name);
         }
       } else if (mod == 0b10) {
         fread(&instruction[2], 1, 2, program);
         if ((instruction[0] >> 1 & 1))
-          fprintf(disassemble, "mov %s, [%s + %d]\n", reg,
-                  mods[instruction[1] & 0b00000111],
-                  instruction[2] | instruction[3] << 8);
+          fprintf(disassemble, "mov %s, [%s + %d]\n", reg_name,
+                  effective_address, instruction[2] | instruction[3] << 8);
         else
-          fprintf(disassemble, "mov [%s + %d], %s\n",
-                  mods[instruction[1] & 0b00000111],
-                  instruction[2] | instruction[3] << 8, reg);
+          fprintf(disassemble, "mov [%s + %d], %s\n", effective_address,
+                  instruction[2] | instruction[3] << 8, reg_name);
       }
     } else if (instruction[0] >> 1 ==
                0b1100011) { // Immediate to register/memory
@@ -101,8 +103,8 @@ int main(int argc, char *argv[]) {
       }
       fprintf(disassemble, "mov %s, %d\n", reg, data);
     } else {
-      puts("ILLEGAL INSTRUCTION");
-      return EXIT_FAILURE;
+      printf("Illegal Instruction %b\n", instruction[0]);
+      // return EXIT_FAILURE;
     }
 
     fread(instruction, 1, 1, program);
