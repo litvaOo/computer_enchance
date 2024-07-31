@@ -61,12 +61,11 @@ int main(int argc, char *argv[]) {
       size_t next_read = 1 + width;
       fread(&instruction[1], 1, next_read, program);
       char *reg = w[width][(instruction[0] & 0b00000111)];
+      uint16_t data = instruction[1];
       if (width) {
-        uint16_t data = instruction[1] & (instruction[2] << 8);
-        fprintf(disassemble, "mov %s %d\n", reg, data);
-      } else {
-        fprintf(disassemble, "mov %s, %d\n", reg, instruction[1]);
+        data |= (instruction[2] << 8);
       }
+      fprintf(disassemble, "mov %s %d\n", reg, data);
     } else {
       puts("ILLEGAL INSTRUCTION");
       return EXIT_FAILURE;
