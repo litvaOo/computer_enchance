@@ -102,6 +102,17 @@ int main(int argc, char *argv[]) {
         data |= (instruction[2] << 8);
       }
       fprintf(disassemble, "mov %s, %d\n", reg, data);
+    } else if (instruction[0] >> 2 == 0b101000) {
+      size_t next_read = 1 + (instruction[0] & 1);
+      fread(&instruction[1], 1, next_read, program);
+      uint16_t address = instruction[1];
+      if (instruction[0] & 1) {
+        address |= instruction[2] << 8;
+      }
+      if (instruction[0] >> 1 & 1)
+        fprintf(disassemble, "mov [%d], ax\n", address);
+      else
+        fprintf(disassemble, "mov ax, [%d]\n", address);
     } else {
       printf("Illegal Instruction %b\n", instruction[0]);
       // return EXIT_FAILURE;
