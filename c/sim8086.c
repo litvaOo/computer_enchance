@@ -64,33 +64,46 @@ int main(int argc, char *argv[]) {
 
       } else if (mod == 0b01) {
         fread(&instruction[2], 1, 1, program);
-        uint8_t displacement = instruction[2];
+        int m = 1U << 7;
+        int16_t displacement = (instruction[2] ^ m) - m;
+        char *sign = "+";
+        if (displacement < 0) {
+          displacement *= -1;
+          sign = "-";
+        }
         if ((instruction[0] >> 1 & 1)) {
           if (displacement != 0)
-            fprintf(disassemble, "mov %s, [%s + %d]\n", reg_name,
-                    effective_address, instruction[2]);
+            fprintf(disassemble, "mov %s, [%s %s %d]\n", reg_name,
+                    effective_address, sign, displacement);
           else
             fprintf(disassemble, "mov %s, [%s]\n", reg_name, effective_address);
         } else {
           if (displacement != 0)
-            fprintf(disassemble, "mov [%s + %d], %s\n", effective_address,
-                    instruction[2], reg_name);
+            fprintf(disassemble, "mov [%s %s %d], %s\n", effective_address,
+                    sign, displacement, reg_name);
           else
             fprintf(disassemble, "mov [%s], %s\n", effective_address, reg_name);
         }
       } else if (mod == 0b10) {
         fread(&instruction[2], 1, 2, program);
+        int16_t displacement = instruction[2] | instruction[3] << 8;
+        char *sign = "+";
+        if (displacement < 0) {
+          displacement *= -1;
+          sign = "-";
+        }
+
         if ((instruction[0] >> 1 & 1))
-          fprintf(disassemble, "mov %s, [%s + %d]\n", reg_name,
-                  effective_address, instruction[2] | instruction[3] << 8);
+          fprintf(disassemble, "mov %s, [%s %s %d]\n", reg_name,
+                  effective_address, sign, displacement);
         else
-          fprintf(disassemble, "mov [%s + %d], %s\n", effective_address,
-                  instruction[2] | instruction[3] << 8, reg_name);
+          fprintf(disassemble, "mov [%s %s %d], %s\n", effective_address, sign,
+                  displacement, reg_name);
       }
     } else if (instruction[0] >> 1 ==
                0b1100011) { // Immediate to register/memory
-      size_t next_read = 4 + (instruction[0] & 1);
-      fread(&instruction[1], 1, next_read, program);
+      fread(&instruction[1], 1, 1, program);
+
       // TODO: implement
     } else if (instruction[0] >> 4 == 0b1011) { // immediate to register
       uint8_t width = ((instruction[0] >> 3) & 1);
