@@ -103,8 +103,51 @@ int main(int argc, char *argv[]) {
     } else if (instruction[0] >> 1 ==
                0b1100011) { // Immediate to register/memory
       fread(&instruction[1], 1, 1, program);
-
-      // TODO: implement
+      size_t next_read = 1 + (instruction[0] & 1);
+      int rm = instruction[1] & 0b00000111;
+      char *rm_name = mods[rm];
+      char *constant_size = instruction[0] & 1 ? "word" : "byte";
+      int16_t immediate;
+      int16_t displacement;
+      char *sign = "+";
+      if (instruction[1] >> 6 == 0b01) {
+        next_read += 1;
+        fread(&instruction[2], 1, next_read, program);
+        int m = 1U << 7;
+        displacement = (instruction[2] ^ m) - m;
+        if (displacement < 0) {
+          displacement *= -1;
+          sign = "-";
+        }
+        immediate = instruction[3];
+        if (instruction[0] & 1) {
+          immediate |= instruction[4] << 8;
+        }
+      } else if (instruction[1] >> 6 == 0b10) {
+        next_read += 2;
+        fread(&instruction[2], 1, next_read, program);
+        displacement = instruction[2] | instruction[3] << 8;
+        if (displacement < 0) {
+          displacement *= -1;
+          sign = "-";
+        }
+        immediate = instruction[4];
+        if (instruction[0] & 1) {
+          immediate |= instruction[5] << 8;
+        }
+      } else if (instruction[1] >> 6 == 0b00) {
+        fread(&instruction[2], 1, next_read, program);
+        immediate = instruction[2];
+        if (instruction[0] & 1) {
+          immediate |= instruction[3] << 8;
+        }
+      }
+      if (displacement == 0b00)
+        fprintf(disassemble, "mov [%s], %s %d\n", rm_name, constant_size,
+                immediate);
+      else
+        fprintf(disassemble, "mov [%s %s %d], %s %d\n", rm_name, sign,
+                displacement, constant_size, immediate);
     } else if (instruction[0] >> 4 == 0b1011) { // immediate to register
       uint8_t width = ((instruction[0] >> 3) & 1);
       size_t next_read = 1 + width;
